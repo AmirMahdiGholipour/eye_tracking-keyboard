@@ -6,15 +6,13 @@ import time
 # ===============================
 # تنظیمات
 # ===============================
-DWELL_TIME = 1.0  # مدت نگاه برای انتخاب
+DWELL_TIME = 2.1  # مدت موندن نگاه برای تایپ
 typed_text = ""
-current_hover = None
 gaze_start_time = None
+current_key = None
 
-# thresholds برای LEFT / CENTER / RIGHT
 left_threshold = 0.4
 right_threshold = 0.6
-
 smooth_frames = 10
 hysteresis_count = 2
 
@@ -29,26 +27,40 @@ face_mesh = mp_face_mesh.FaceMesh(refine_landmarks=True)
 cap = cv2.VideoCapture(0)
 
 # ===============================
-# کیبورد مرحله ۱
+# Keyboard سه مرحله‌ای
 # ===============================
 keyboard_stage1 = [
-    ["ABC", "DEF", "GHI"],
-    ["JKL", "MNO", "PQR"],
-    ["STU", "VWX", "YZ ⌫"]
+    ["ABC","DEF","GHI"],
+    ["JKL","MNO","PQR"],
+    ["STU","VWX","YZ⌫"]
 ]
 
-step = 1
+stage = 1  # 1: ستون، 2: ستون داخلی، 3: حرف
 selected_col = 0
-selected_row = 0
-horiz_dir = "CENTER"
+internal_layout = []
+letter_options = []
 
-def draw_direction(frame, horiz_dir):
-    cv2.putText(frame, f"Direction: {horiz_dir}", (30,50),
-                cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2)
+# ===============================
+# تابع رسم صفحه
+# ===============================
+def draw_stage(frame, layout, highlight_index):
+    start_x, start_y = 50, 120
+    w, h = 180, 90
+    for row in range(len(layout)):
+        for col in range(len(layout[row])):
+            color = (0,255,0) if col==highlight_index else (255,255,255)
+            x = start_x + col*w
+            y = start_y + row*h
+            cv2.rectangle(frame, (x,y), (x+w, y+h), color, 2)
+            if layout[row][col]!="":
+                cv2.putText(frame, layout[row][col], (x+20, y+60),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
 
 # ===============================
 # حلقه اصلی
 # ===============================
+horiz_dir = "CENTER"
+
 while True:
     ret, frame = cap.read()
     if not ret:
@@ -58,7 +70,7 @@ while True:
     rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     results = face_mesh.process(rgb)
 
-    gaze_x_norm = 0.5  # وسط پیشفرض
+    gaze_x_norm = 0.5
 
     if results.multi_face_landmarks:
         face = results.multi_face_landmarks[0]
@@ -91,21 +103,22 @@ while True:
         right_coords = cv2.findNonZero(right_thresh)
 
         if left_coords is not None and right_coords is not None:
-            lx, _ = np.mean(left_coords, axis=0)[0]
-            rx, _ = np.mean(right_coords, axis=0)[0]
+            lx, ly = np.mean(left_coords, axis=0)[0]
+            rx, ry = np.mean(right_coords, axis=0)[0]
 
-            # موقعیت نسبی چشم نسبت به خودش
+            # نقطه مردمک
+            cv2.circle(left_eye,(int(lx),int(ly)),3,(0,255,0),-1)
+            cv2.circle(right_eye,(int(rx),int(ry)),3,(0,255,0),-1)
+
             lx_norm = lx/left_eye.shape[1]
             rx_norm = rx/right_eye.shape[1]
             avg_x = (lx_norm+rx_norm)/2
 
-            # smoothing
             avg_history_h.append(avg_x)
             if len(avg_history_h)>smooth_frames:
                 avg_history_h.pop(0)
             smooth_h = np.median(avg_history_h)
 
-            # تشخیص افقی
             temp_dir_h = "CENTER"
             if smooth_h < left_threshold: temp_dir_h = "LEFT"
             elif smooth_h > right_threshold: temp_dir_h = "RIGHT"
@@ -116,45 +129,89 @@ while True:
                 horiz_dir = temp_dir_h
 
     # ===============================
-    # نمایش جدول مرحله ۱
+    # مرحله ۱: ستون اصلی
     # ===============================
-    draw_direction(frame, horiz_dir)
+    if stage ==1:
+        draw_stage(frame, keyboard_stage1, highlight_index={"LEFT":0,"CENTER":1,"RIGHT":2}[horiz_dir])
+        if gaze_start_time is None:
+            gaze_start_time = time.time()
+            current_key = horiz_dir
+        else:
+            if horiz_dir==current_key:
+                if time.time()-gaze_start_time>=DWELL_TIME:
+                    selected_col = {"LEFT":0,"CENTER":1,"RIGHT":2}[horiz_dir]
+                    # ساخت internal_layout
+                    internal_layout=[]
+                    for row in keyboard_stage1:
+                        val = row[selected_col]
+                        temp = [c for c in val]
+                        while len(temp)<3: temp.append("")
+                        internal_layout.append(temp)
+                    stage =2
+                    gaze_start_time=None
+                    current_key=None
+            else:
+                gaze_start_time=time.time()
+                current_key=horiz_dir
 
-    # تعیین ستون انتخاب شده با dwell
-    hovered_index = {"LEFT":0,"CENTER":1,"RIGHT":2}[horiz_dir]
+    # ===============================
+    # مرحله ۲: ستون داخلی / ردیف
+    # ===============================
+    elif stage ==2:
+        draw_stage(frame, internal_layout, highlight_index={"LEFT":0,"CENTER":1,"RIGHT":2}[horiz_dir])
+        if gaze_start_time is None:
+            gaze_start_time=time.time()
+            current_key=horiz_dir
+        else:
+            if horiz_dir==current_key:
+                if time.time()-gaze_start_time>=DWELL_TIME:
+                    selected_internal_col={"LEFT":0,"CENTER":1,"RIGHT":2}[horiz_dir]
+                    letter_options=[]
+                    for row in internal_layout:
+                        val=row[selected_internal_col]
+                        if val!="":
+                            letter_options.append(val)
+                    stage=3
+                    gaze_start_time=None
+                    current_key=None
+            else:
+                gaze_start_time=time.time()
+                current_key=horiz_dir
 
-    if current_hover != hovered_index:
-        current_hover = hovered_index
-        gaze_start_time = time.time()
-    else:
-        if time.time()-gaze_start_time >= DWELL_TIME:
-            selected_col = hovered_index
-            # بعداً مرحله ۲ فعال میشه
-            gaze_start_time=None
-            current_hover=None
-
-    # رسم جدول ۳×۳
-    start_x = 50
-    start_y = 120
-    w = 180
-    h_cell = 100
-
-    for row in range(3):
-        for col in range(3):
-            x = start_x + col*w
-            y = start_y + row*h_cell
-            color = (0,255,0) if col==selected_col else (255,255,255)
-            thickness = -1 if color==(0,255,0) else 2
-            cv2.rectangle(frame, (x,y),(x+w,y+h_cell), color, thickness)
-            cv2.putText(frame, keyboard_stage1[row][col], (x+20, y+65),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0) if thickness==-1 else (0,255,0), 2)
+    # ===============================
+    # مرحله ۳: انتخاب حرف با LEFT/CENTER/RIGHT
+    # ===============================
+    elif stage==3:
+        draw_stage(frame, [letter_options], highlight_index={"LEFT":0,"CENTER":1,"RIGHT":2}[horiz_dir])
+        if gaze_start_time is None:
+            gaze_start_time=time.time()
+            current_key=horiz_dir
+        else:
+            if horiz_dir==current_key:
+                if time.time()-gaze_start_time>=DWELL_TIME:
+                    idx = {"LEFT":0,"CENTER":1,"RIGHT":2}[horiz_dir]
+                    if idx<len(letter_options):
+                        val=letter_options[idx]
+                        if val=="⌫":
+                            typed_text=typed_text[:-1]
+                        else:
+                            typed_text+=val
+                    stage=1
+                    gaze_start_time=None
+                    current_key=None
+            else:
+                gaze_start_time=time.time()
+                current_key=horiz_dir
 
     # نمایش متن تایپ شده
     cv2.rectangle(frame,(30,30),(900,80),(0,0,0),-1)
     display_text = typed_text if len(typed_text)<60 else typed_text[-60:]
-    cv2.putText(frame, display_text,(40,70),cv2.FONT_HERSHEY_SIMPLEX,1,(0,255,255),2)
+    cv2.putText(frame,display_text,(40,70),cv2.FONT_HERSHEY_SIMPLEX,1,(0,255,255),2)
 
-    cv2.imshow("Eye Keyboard Stage 1", frame)
+    # نمایش جهت نگاه
+    cv2.putText(frame,f"DIR: {horiz_dir}",(30,100),cv2.FONT_HERSHEY_SIMPLEX,1,(0,0,255),2)
+
+    cv2.imshow("Eye Keyboard",frame)
     if cv2.waitKey(1) & 0xFF==27:
         break
 
