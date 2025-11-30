@@ -4,7 +4,8 @@
 A practical project that allows **typing text using only your eyes**.  
 This project uses eye-tracking sensors and lets users type on a computer **without touching the keyboard**.
 
-**NOTE: THIS VERSION DOES NOT HAVE SPACE CHARACTER YET.**
+**NOTE: THIS VERSION DOES NOT HAVE SPACE CHARACTER YET. <br>
+THE ```???``` CHARACTER IS BACKSPACE**
 
 ## 💡 Features
 
