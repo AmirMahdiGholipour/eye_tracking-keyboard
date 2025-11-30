@@ -47,7 +47,7 @@ pip install numpy
 - Select your column with looking LEFT/RIGHT/CENTRE <br>
 (**IT NEEDS A LITTLE GAZE TO SELECT**) <br>
 - YOU CAN CONTROL DWELL TIME BY CHANGING **DWELL_TIME** AMOUNT IN THE ```eye_tracking.py``` FILE
-- YOU CAN CONTROL YOUR EYES THRESHOL BY ADJUSTING **left_threshold** AND **right_threshold** AMOUNT IN THE ```eye_tracking.py``` 
+- YOU CAN CONTROL YOUR EYES THRESHOLD BY ADJUSTING **left_threshold** AND **right_threshold** AMOUNT IN THE ```eye_tracking.py``` 
 - NOTE THAT: IF YOU SET **left_threshold** TO FOR EXAMPLE 0.3 YOU NEED TO CHANGE **right_threshold** TO 0.7, <br>
 AND IF YOU CHANGE THE **left_threshold** TO 0.2 YOU NEED TO CHANGE **right_threshold** TO 0.8
 
