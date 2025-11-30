@@ -17,7 +17,7 @@ This project uses eye-tracking sensors and lets users type on a computer **witho
 ```bash
 pip install opencv-python
 pip install mediapipe
-pip install 
+pip install numpy
 ```
 ## 📸 Screenshots
 
@@ -39,7 +39,7 @@ pip install
 
 ## 💠 How To Use 
 
-- Run program in CMD by
+- Go to project's folder in CMD and run program by
 
 ```
 - python eye_tracking.py
