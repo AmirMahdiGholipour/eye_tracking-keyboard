@@ -11,7 +11,9 @@ typed_text = ""
 gaze_start_time = None
 current_key = None
 
-left_threshold = 0.4
+#حساسیت چشم 
+
+left_threshold = 0.4 
 right_threshold = 0.6
 smooth_frames = 10
 hysteresis_count = 2
