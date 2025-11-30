@@ -20,6 +20,7 @@ pip install opencv-python
 pip install mediapipe
 pip install numpy
 ```
+**NOTE**: if mediapipe doesn't install for you, just install python 3.10 and check the **Add To Path** checkbox when you run the installer.
 ## 📸 Screenshots
 
 <h2><i>LEVEL 1 Selection</i></h2>
